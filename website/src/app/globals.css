@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* Design tokens — source of truth: docs/DESIGN_SYSTEM.md. Keep in sync with
+   app/lib/core/theme/app_colors.dart on the Flutter side. */
+:root {
+  --color-brand: #ff5a3c;
+  --color-brand-strong: #e4472b;
+  --color-bg-base: #ffffff;
+  --color-bg-surface: #f7f6f4;
+  --color-bg-surface-raised: #ffffff;
+  --color-text-primary: #171412;
+  --color-text-secondary: #6b6560;
+  --color-border: #e8e5e1;
+  --color-success: #1e9e5a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+
+  --radius-input: 0.5rem;
+  --radius-card: 0.75rem;
+}
+
+:root[data-theme="dark"] {
+  --color-brand: #ff6b4a;
+  --color-brand-strong: #ff8563;
+  --color-bg-base: #121212;
+  --color-bg-surface: #1b1b1b;
+  --color-bg-surface-raised: #222222;
+  --color-text-primary: #f5f3f1;
+  --color-text-secondary: #a8a29c;
+  --color-border: #2e2e2e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-brand: #ff6b4a;
+    --color-brand-strong: #ff8563;
+    --color-bg-base: #121212;
+    --color-bg-surface: #1b1b1b;
+    --color-bg-surface-raised: #222222;
+    --color-text-primary: #f5f3f1;
+    --color-text-secondary: #a8a29c;
+    --color-border: #2e2e2e;
+  }
+}
+
+@theme inline {
+  --color-brand: var(--color-brand);
+  --color-brand-strong: var(--color-brand-strong);
+  --color-bg-base: var(--color-bg-base);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-surface-raised: var(--color-bg-surface-raised);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-border: var(--color-border);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --radius-input: var(--radius-input);
+  --radius-card: var(--radius-card);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}

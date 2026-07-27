@@ -1,0 +1,53 @@
+name: events_app
+description: "Events discovery app for Pakistan."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^15.1.2
+
+  # Backend
+  supabase_flutter: ^2.8.1
+
+  # Maps (OpenStreetMap tiles, no Google Maps billing)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Push notifications
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.6
+
+  # Media / assets
+  cached_network_image: ^3.4.1
+  google_fonts: ^6.2.1
+  image_picker: ^1.1.2
+  shimmer: ^3.0.0
+
+  # Env config (SUPABASE_URL / SUPABASE_ANON_KEY, not committed)
+  flutter_dotenv: ^5.2.1
+
+  # Dates, entity equality, distance filters
+  intl: ^0.19.0
+  equatable: ^2.0.5
+  geolocator: ^13.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env

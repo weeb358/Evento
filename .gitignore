@@ -1,0 +1,50 @@
+# --- Flutter / Dart (app/) ---
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/.pub-cache/
+app/.pub/
+app/build/
+app/android/.gradle/
+app/android/captures/
+app/android/gradlew
+app/android/gradlew.bat
+app/android/local.properties
+app/android/**/GeneratedPluginRegistrant.java
+app/ios/Flutter/.last_build_id
+app/ios/Pods/
+app/ios/.symlinks/
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
+app/*.iml
+app/.idea/
+app/.env
+app/.env.*
+!app/.env.example
+app/android/app/google-services.json
+app/ios/Runner/GoogleService-Info.plist
+
+# --- Next.js (website/) ---
+website/node_modules/
+website/.next/
+website/out/
+website/build/
+website/.env
+website/.env.*.local
+website/.env.local
+!website/.env.example
+website/next-env.d.ts
+
+# --- Supabase ---
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+!supabase/.env.example
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
