@@ -42,6 +42,11 @@ supabase/.temp/
 supabase/.env
 !supabase/.env.example
 
+# --- Cloudflare Workers (workers/) ---
+workers/*/node_modules/
+workers/*/.wrangler/
+workers/*/.dev.vars
+
 # --- OS / editor ---
 .DS_Store
 Thumbs.db

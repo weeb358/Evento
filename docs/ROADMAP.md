@@ -27,11 +27,10 @@ and the 3-role model" in `ARCHITECTURE.md` for the details and the tradeoffs mad
 - [x] Step 4: Map view of events (`flutter_map` + OSM), plus a tap-to-pick-location
       picker on the create/edit form.
 - [x] Step 5: RSVP (going/interested) + save/bookmark (default collection).
-- [ ] Step 6: Push notifications (FCM) for RSVP'd event reminders — **not built**.
-      `firebase_messaging` is a dependency but there's no token registration,
-      permission flow, or the server-side scheduler a "remind me before the event"
-      notification needs (a cron'd Supabase Edge Function, most likely). Flagged
-      separately because it's the one Phase 1 item still open.
+- [x] Step 6: Push notifications (FCM) for RSVP'd event reminders — done. App-side
+      token registration/receiving, plus a Cloudflare Worker
+      (`workers/reminder-notifications`, cron every 15 min) that sends the actual
+      "starting soon" pushes via the FCM HTTP v1 API. See `docs/ARCHITECTURE.md`.
 - [x] Step 7: Reviews (post-event rating) + reporting (event/user, reason + submit).
 
 ## Phase 2 — Premium tier — done

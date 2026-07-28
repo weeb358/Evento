@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "evento-reminder-notifications",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Every 15 minutes — matched by get_pending_reminders()'s 1-hour lookahead
+  // window in supabase/migrations/0007_reminder_tracking.sql, wide enough
+  // to tolerate one missed run.
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+
+  "observability": {
+    "enabled": true
+  }
+
+  // Secrets (never in this file — set via `wrangler secret put`, see README.md):
+  //   SUPABASE_URL
+  //   SUPABASE_SERVICE_ROLE_KEY
+  //   FIREBASE_SERVICE_ACCOUNT   (the full downloaded JSON, as one string)
+}

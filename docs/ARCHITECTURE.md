@@ -43,21 +43,35 @@ session, same everything downstream. A few decisions worth knowing about:
   request from the DB (not the login flow's one-time check), so losing admin access
   takes effect on the next request either way.
 
-## Push notifications (FCM) — receiving half only
+## Push notifications (FCM) — both halves now built
 
-Only the app-side registration/receiving half is built: requesting notification
-permission, getting/refreshing the FCM token, storing it in `public.push_tokens`
-(0006_push_tokens.sql, RLS-scoped to its owner), and displaying foreground messages
-via a SnackBar (`main.dart`'s `_ForegroundNotificationBanner` — FCM only puts up a
-system tray notification automatically when the app is backgrounded/terminated).
+App-side registration/receiving: requesting notification permission, getting/
+refreshing the FCM token, storing it in `public.push_tokens` (0006_push_tokens.sql,
+RLS-scoped to its owner), and displaying foreground messages via a SnackBar
+(`main.dart`'s `_ForegroundNotificationBanner` — FCM only puts up a system tray
+notification automatically when the app is backgrounded/terminated).
 
-**Not built**: anything that actually sends a "your event starts soon" push. That
-needs a scheduler outside the app — a Supabase Edge Function on a cron schedule that
-queries `event_rsvps` joined to `events` for upcoming start times, looks up tokens in
-`push_tokens`, and calls the FCM HTTP v1 send API using a Firebase service-account key
-(a second credential, generated from Project Settings → Service Accounts in the
-Firebase console — distinct from `google-services.json`, which only configures the
-client SDK). Build this once the receiving half is confirmed working end-to-end.
+The sending half is `workers/reminder-notifications` — a **Cloudflare Worker**
+(not a Supabase Edge Function, per explicit direction) on a 15-minute cron:
+
+- `get_pending_reminders()`/`mark_reminder_sent()` (0007_reminder_tracking.sql) are
+  `SECURITY DEFINER` functions with no grant to `authenticated`/`anon` — they're only
+  reachable via the Supabase **service role** key, which the Worker holds as a secret
+  and which bypasses RLS entirely. That's deliberate: this job reads every user's
+  RSVPs and device tokens at once, which no regular authenticated session should ever
+  be able to do.
+- FCM auth uses the **HTTP v1 API**, not the deprecated legacy server-key API — the
+  Worker self-signs a JWT with a Firebase service-account private key (Web Crypto
+  `RSASSA-PKCS1-v1_5`/SHA-256, no Node `googleapis` package available in the Workers
+  runtime) and exchanges it for a Google OAuth2 access token per invocation.
+- `reminder_sent_at` is set once per **event** after all of that event's pushes are
+  attempted, not per token — so one stale/invalid device token failing doesn't cause
+  a resend storm to the rest of that event's attendees on the next sweep.
+- Two credentials are required, and they're different things: `google-services.json`
+  configures the client SDK (already in `app/`); the service-account JSON
+  (Project Settings → Service Accounts → Generate new private key) authorizes
+  server-to-server sends and is what the Worker needs. See
+  `workers/reminder-notifications/README.md` for the exact setup steps.
 
 **Setup**: this app's Android package is `com.eventsplatform.events_app` — the
 Firebase Android app must be registered with that exact package name, or the Gradle

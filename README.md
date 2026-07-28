@@ -11,6 +11,7 @@ is always in sync.
 | `app/`       | Flutter mobile app (Android first). Auth, events, premium, hosting.     |
 | `website/`   | Next.js web app — public browsing, auth, premium, `/admin` moderation.  |
 | `supabase/`  | Single source of truth backend: SQL migrations, RLS policies, storage.  |
+| `workers/`   | Cloudflare Workers — currently just the FCM reminder-sender cron job.   |
 | `docs/`      | Roadmap, architecture decisions, shared design system tokens.           |
 
 Start with [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's built vs. planned, and
@@ -22,9 +23,10 @@ Events, Premium, and Hosting are fully built and working against a real Supabase
 project (schema + RLS applied, both clients verified end-to-end). Auth: email/
 password works out of the box; **phone OTP needs an SMS provider connected**
 (Authentication → Providers → Phone in the Supabase dashboard — Twilio is the usual
-choice) before it'll send codes. Push notifications receive correctly once Firebase
-is connected, but the job that actually sends "your event starts soon" reminders
-isn't built yet.
+choice) before it'll send codes. Push notifications are fully wired — app-side
+receiving plus a deployed Cloudflare Worker that sends "starting soon" reminders —
+though the Worker needs one more secret (a Firebase service-account key) before it can
+actually send; see `workers/reminder-notifications/README.md`.
 
 ## Getting started
 
@@ -33,7 +35,7 @@ isn't built yet.
 ```
 cd supabase
 supabase start          # local dev stack
-supabase db reset       # applies migrations/ in order (0001-0006)
+supabase db reset       # applies migrations/ in order (0001-0007)
 ```
 
 Copy `supabase/.env.example` to `supabase/.env` and fill in project values once you've
@@ -56,8 +58,8 @@ flutter run
 not committed). The Android app's package is `com.eventsplatform.events_app`; the
 Firebase Android app you register must use that exact package name or the build fails
 with "No matching client found." Token registration and foreground/background message
-handling are wired up; the actual "your event starts soon" sender job isn't built yet
-— see `docs/ARCHITECTURE.md`.
+handling are wired up; the actual sender job lives in `workers/reminder-notifications`
+— see that folder's README for the one remaining setup step.
 
 ### Website
 
@@ -67,3 +69,9 @@ cp .env.example .env.local   # fill in NEXT_PUBLIC_SUPABASE_URL / PUBLISHABLE_KE
 npm install
 npm run dev
 ```
+
+### Reminder notifications (Cloudflare Worker)
+
+Already deployed and running on a 15-minute cron. See
+[`workers/reminder-notifications/README.md`](workers/reminder-notifications/README.md)
+for secrets/redeploy instructions.
