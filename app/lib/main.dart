@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/notifications/notification_providers.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/onboarding/intro_providers.dart';
 import 'core/router/app_router.dart';
 import 'core/supabase/supabase_providers.dart';
 import 'core/theme/app_theme.dart';
@@ -26,7 +27,14 @@ Future<void> main() async {
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  runApp(const ProviderScope(child: EventsApp()));
+  final hasSeenIntro = await loadHasSeenIntro();
+
+  runApp(
+    ProviderScope(
+      overrides: [hasSeenIntroProvider.overrideWith((ref) => hasSeenIntro)],
+      child: const EventsApp(),
+    ),
+  );
 }
 
 class EventsApp extends ConsumerWidget {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/google_sign_in_button.dart';
 import '../controllers/auth_controller.dart';
 
 class EmailSignUpScreen extends ConsumerStatefulWidget {
@@ -31,36 +31,19 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final email = _emailController.text.trim();
     final ok = await ref.read(emailAuthControllerProvider.notifier).signUp(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text,
           requestEventPlanner: _wantsToOrganize,
         );
 
     if (!mounted || !ok) return;
+    context.push('/auth/email-verify', extra: email);
+  }
 
-    // If the Supabase project has "Confirm email" enabled, signUp() doesn't
-    // create a session until the user clicks the confirmation link — there's
-    // nothing more to do here yet in that case.
-    if (Supabase.instance.client.auth.currentSession == null) {
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Check your email'),
-          content: const Text(
-            'We sent a confirmation link to finish creating your account. Once '
-            'confirmed, come back and sign in.',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
-          ],
-        ),
-      );
-      if (mounted) context.go('/auth/email-login');
-      return;
-    }
-
-    if (mounted) context.go('/auth/profile-setup');
+  Future<void> _submitGoogle() async {
+    await ref.read(emailAuthControllerProvider.notifier).signInWithGoogle();
   }
 
   @override
@@ -82,10 +65,22 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
               children: [
                 Text('Create your account', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: AppSpacing.xl),
+                GoogleSignInButton(onPressed: _submitGoogle, isLoading: isLoading),
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      child: Text('or', style: theme.textTheme.bodySmall),
+                    ),
+                    Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  autofocus: true,
                   decoration: const InputDecoration(labelText: 'Email'),
                   validator: (value) => (value ?? '').contains('@') ? null : 'Enter a valid email',
                 ),

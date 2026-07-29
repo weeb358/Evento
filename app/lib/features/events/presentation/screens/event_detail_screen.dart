@@ -215,7 +215,7 @@ class _RsvpSection extends ConsumerWidget {
 
     Future<void> setStatus(RsvpStatus status) async {
       if (currentUserId == null) {
-        context.push('/auth/phone');
+        context.push('/auth/email-login');
         return;
       }
       final myRsvp = myRsvpAsync.valueOrNull;

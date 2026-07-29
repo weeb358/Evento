@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/reviews/review.dart';
 import '../../../../core/reviews/review_providers.dart';
+import '../../../../core/supabase/supabase_providers.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/users/user_profile_providers.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../chat/presentation/controllers/chat_providers.dart';
 
 class PublicProfileScreen extends ConsumerWidget {
   const PublicProfileScreen({super.key, required this.userId});
@@ -72,6 +75,21 @@ class PublicProfileScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.lg),
                 Text(profile.bio!, style: theme.textTheme.bodyMedium),
               ],
+              const SizedBox(height: AppSpacing.lg),
+              if (ref.watch(currentUserIdProvider) != null && ref.watch(currentUserIdProvider) != userId)
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: const Text('Message'),
+                  onPressed: () async {
+                    final result = await ref.read(chatRepositoryProvider).getOrCreateDirectThread(userId);
+                    result.when(
+                      ok: (threadId) => context.push('/chat/$threadId'),
+                      err: (failure) => ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(failure.message)),
+                      ),
+                    );
+                  },
+                ),
               const SizedBox(height: AppSpacing.xl),
               Text('Reviews', style: theme.textTheme.titleMedium),
               const SizedBox(height: AppSpacing.sm),

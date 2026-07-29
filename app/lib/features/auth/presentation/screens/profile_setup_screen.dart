@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class ProfileSetupScreen extends ConsumerStatefulWidget {
 
 class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
   final _nameController = TextEditingController();
   final _cityController = TextEditingController();
   final _bioController = TextEditingController();
@@ -28,21 +30,52 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   bool _isSaving = false;
   String? _errorMessage;
   bool _wantsToOrganize = false;
-  bool _hasSyncedRole = false;
+  bool _hasSyncedProfile = false;
+  Timer? _usernameDebounce;
+  bool? _usernameAvailable;
+  bool _checkingUsername = false;
+  String? _originalUsername;
 
-  void _syncRoleCheckbox(AppUserProfile? profile) {
-    if (_hasSyncedRole || profile == null) return;
-    _hasSyncedRole = true;
+  void _syncFromExisting(AppUserProfile? profile) {
+    if (_hasSyncedProfile || profile == null) return;
+    _hasSyncedProfile = true;
     _wantsToOrganize = profile.canOrganizeEvents;
+    _originalUsername = profile.username;
+    if (profile.username != null) _usernameController.text = profile.username!;
+    if (profile.name != null) _nameController.text = profile.name!;
+    if (profile.city != null) _cityController.text = profile.city!;
+    if (profile.bio != null) _bioController.text = profile.bio!;
   }
 
   @override
   void dispose() {
+    _usernameDebounce?.cancel();
+    _usernameController.dispose();
     _nameController.dispose();
     _cityController.dispose();
     _bioController.dispose();
     super.dispose();
   }
+
+  void _onUsernameChanged(String value) {
+    _usernameDebounce?.cancel();
+    setState(() => _usernameAvailable = null);
+
+    final normalized = value.trim().toLowerCase();
+    if (normalized == _originalUsername || !_isValidUsernameFormat(normalized)) return;
+
+    _usernameDebounce = Timer(const Duration(milliseconds: 400), () async {
+      setState(() => _checkingUsername = true);
+      final result = await ref.read(userProfileRepositoryProvider).isUsernameAvailable(normalized);
+      if (!mounted) return;
+      setState(() {
+        _checkingUsername = false;
+        _usernameAvailable = result.when(ok: (available) => available, err: (_) => null);
+      });
+    });
+  }
+
+  bool _isValidUsernameFormat(String value) => RegExp(r'^[a-z0-9_]{3,20}$').hasMatch(value);
 
   Future<void> _pickPhoto() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800);
@@ -56,6 +89,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final username = _usernameController.text.trim().toLowerCase();
+    if (username != _originalUsername && _usernameAvailable == false) return;
 
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
@@ -87,6 +123,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
     final result = await repo.updateProfile(
       userId: userId,
+      username: username,
       name: _nameController.text.trim(),
       city: _cityController.text.trim(),
       bio: _bioController.text.trim(),
@@ -117,7 +154,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final existingProfile = ref.watch(currentUserProfileProvider).valueOrNull;
-    _syncRoleCheckbox(existingProfile);
+    _syncFromExisting(existingProfile);
     final alreadyOrganizer = existingProfile?.canOrganizeEvents ?? false;
 
     return Scaffold(
@@ -152,6 +189,38 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    prefixText: '@',
+                    suffixIcon: _checkingUsername
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : _usernameAvailable == true
+                            ? const Icon(Icons.check_circle_rounded, color: Colors.green)
+                            : _usernameAvailable == false
+                                ? Icon(Icons.cancel_rounded, color: theme.colorScheme.error)
+                                : null,
+                    helperText: 'Lowercase letters, numbers, underscore — 3 to 20 characters',
+                  ),
+                  onChanged: _onUsernameChanged,
+                  validator: (value) {
+                    final normalized = (value ?? '').trim().toLowerCase();
+                    if (!_isValidUsernameFormat(normalized)) return 'Invalid username format';
+                    if (normalized != _originalUsername && _usernameAvailable == false) {
+                      return 'Username is taken';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'Full name'),

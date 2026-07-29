@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/google_sign_in_button.dart';
 import '../controllers/auth_controller.dart';
 
 class EmailLoginScreen extends ConsumerStatefulWidget {
@@ -40,6 +41,13 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
     // navigates away — nothing else to do here.
   }
 
+  Future<void> _submitGoogle() async {
+    await ref.read(emailAuthControllerProvider.notifier).signInWithGoogle();
+    // Cancellation and real failures both just leave the error banner up
+    // via emailAuthControllerProvider's AsyncError state — no separate
+    // handling needed here.
+  }
+
   void _showSignUpFirstDialog() {
     showDialog<void>(
       context: context,
@@ -68,6 +76,7 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
     final theme = Theme.of(context);
     final state = ref.watch(emailAuthControllerProvider);
     final isLoading = state.isLoading;
+    final errorMessage = ref.read(emailAuthControllerProvider.notifier).errorMessage;
 
     return Scaffold(
       appBar: AppBar(),
@@ -79,12 +88,24 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Sign in with email', style: theme.textTheme.headlineSmall),
+                Text('Sign in', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: AppSpacing.xl),
+                GoogleSignInButton(onPressed: _submitGoogle, isLoading: isLoading),
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      child: Text('or', style: theme.textTheme.bodySmall),
+                    ),
+                    Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  autofocus: true,
                   decoration: const InputDecoration(labelText: 'Email'),
                   validator: (value) =>
                       (value ?? '').contains('@') ? null : 'Enter a valid email',
@@ -103,6 +124,10 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                     child: const Text('Forgot password?'),
                   ),
                 ),
+                if (errorMessage != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(errorMessage, style: TextStyle(color: theme.colorScheme.error)),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 SizedBox(
                   width: double.infinity,
@@ -122,12 +147,6 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                   child: TextButton(
                     onPressed: () => context.push('/auth/email-signup'),
                     child: const Text('Don\'t have an account? Sign up'),
-                  ),
-                ),
-                Center(
-                  child: TextButton(
-                    onPressed: () => context.pop(),
-                    child: const Text('Use phone number instead'),
                   ),
                 ),
               ],

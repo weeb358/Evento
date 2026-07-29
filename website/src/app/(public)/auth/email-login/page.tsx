@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 
 export default function EmailLoginPage() {
   const router = useRouter();
@@ -32,8 +33,16 @@ export default function EmailLoginPage() {
 
   return (
     <div className="mx-auto flex max-w-sm flex-col px-6 py-24">
-      <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">Sign in with email</h1>
-      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">Sign in</h1>
+      <div className="mt-8">
+        <GoogleSignInButton />
+      </div>
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-[var(--color-border)]" />
+        <span className="text-xs text-[var(--color-text-secondary)]">or</span>
+        <div className="h-px flex-1 bg-[var(--color-border)]" />
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="email"
           required
@@ -61,14 +70,9 @@ export default function EmailLoginPage() {
           {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
-      <div className="mt-6 flex flex-col gap-2 text-center text-sm">
-        <Link href="/auth/email-signup" className="text-[var(--color-brand)]">
-          Don&apos;t have an account? Sign up
-        </Link>
-        <Link href="/auth/phone" className="text-[var(--color-text-secondary)]">
-          Use phone number instead
-        </Link>
-      </div>
+      <Link href="/auth/email-signup" className="mt-6 text-center text-sm text-[var(--color-brand)]">
+        Don&apos;t have an account? Sign up
+      </Link>
 
       {showSignUpPrompt && (
         <div

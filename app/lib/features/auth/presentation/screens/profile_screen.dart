@@ -91,9 +91,33 @@ class ProfileScreen extends ConsumerWidget {
                     },
                   ),
                 ),
+              if (profile.canOrganizeEvents)
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.dashboard_customize_outlined, color: theme.colorScheme.primary),
+                    title: const Text('My events'),
+                    subtitle: const Text('Manage the events you organize'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/organizer'),
+                  ),
+                ),
               Card(
                 child: Column(
                   children: [
+                    ListTile(
+                      leading: const Icon(Icons.bookmark_outline_rounded),
+                      title: const Text('Saved events'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push('/saved'),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.travel_explore_rounded),
+                      title: const Text('Find a host'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push('/hosting'),
+                    ),
+                    const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.night_shelter_outlined),
                       title: const Text('My host listing'),

@@ -22,17 +22,26 @@ additional_redirect_urls = ["http://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
 
-[auth.sms]
+# Phone auth removed entirely — email (password or Google) is the only
+# sign-in method. See docs/ARCHITECTURE.md.
+
+[auth.email]
 enable_signup = true
 enable_confirmations = true
-# Configure a real SMS provider (e.g. Twilio) before going to production —
-# phone OTP is the only auth method in Phase 1. See docs/ARCHITECTURE.md for
-# the OTP rate-limiting note.
-[auth.sms.twilio]
+# Overrides the default magic-link confirmation email with one containing a
+# 6-digit code instead — the app collects it and calls
+# `verifyOtp({email, token, type: 'signup'})` rather than the user clicking
+# a link. See supabase/templates/confirm_signup.html.
+[auth.email.template.confirmation]
+subject = "Confirm your Events Platform account"
+content_path = "./supabase/templates/confirm_signup.html"
+
+# Flip to `enabled = true` once GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are
+# set in supabase/.env — see docs/ARCHITECTURE.md for how to get them.
+[auth.external.google]
 enabled = false
-account_sid = ""
-auth_token = ""
-message_service_sid = ""
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
 
 [storage]
 enabled = true

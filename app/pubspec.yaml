@@ -42,6 +42,12 @@ dependencies:
   equatable: ^2.0.5
   geolocator: ^13.0.2
 
+  # Onboarding "seen intro" persistence
+  shared_preferences: ^2.3.4
+
+  # Google Sign-In (ID-token flow into Supabase Auth)
+  google_sign_in: ^6.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -47,7 +47,7 @@ export default async function PremiumPage() {
       <div className="mt-10">
         {!user && (
           <Link
-            href="/auth/phone"
+            href="/auth/email-login"
             className="inline-block rounded-[var(--radius-input)] bg-[var(--color-brand)] px-5 py-2.5 font-medium text-white"
           >
             Sign in to upgrade

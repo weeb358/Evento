@@ -1,26 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
+
+function isValidUsername(value: string) {
+  return /^[a-z0-9_]{3,20}$/.test(value);
+}
 
 export default function EmailSignUpPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  // Only trusted when checkedUsername matches the current (normalized)
+  // username — avoids a stale "available" result flashing while the user
+  // keeps typing, without needing a synchronous setState(null) reset
+  // directly in the effect body (which react-hooks/set-state-in-effect
+  // flags as a cascading-render risk).
+  const [checkedUsername, setCheckedUsername] = useState<string | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
-  const [city, setCity] = useState("");
   const [wantsToOrganize, setWantsToOrganize] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmationSent, setConfirmationSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const normalizedUsername = username.trim().toLowerCase();
+  const displayUsernameAvailable = checkedUsername === normalizedUsername ? usernameAvailable : null;
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!isValidUsername(normalizedUsername)) return;
+
+    debounceRef.current = setTimeout(async () => {
+      setCheckingUsername(true);
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("users")
+        .select("id")
+        .eq("username", normalizedUsername)
+        .maybeSingle();
+      setCheckingUsername(false);
+      setCheckedUsername(normalizedUsername);
+      setUsernameAvailable(data === null);
+    }, 400);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [normalizedUsername]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
+    if (!isValidUsername(normalizedUsername)) {
+      setError("Username must be 3-20 characters: lowercase letters, numbers, underscore");
+      return;
+    }
+    if (displayUsernameAvailable === false) {
+      setError("That username is taken");
+      return;
+    }
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
@@ -32,55 +77,39 @@ export default function EmailSignUpPage() {
 
     setLoading(true);
     const supabase = createClient();
-    const { data, error: signUpError } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: wantsToOrganize ? { requested_role: "event_planner" } : undefined,
       },
     });
+    setLoading(false);
 
     if (signUpError) {
-      setLoading(false);
       setError(signUpError.message);
       return;
     }
 
-    // The users row is auto-created by a DB trigger; fill in name/city once
-    // there's a session (there isn't one yet if "Confirm email" is on).
-    if (data.session) {
-      await supabase.from("users").update({ name, city }).eq("id", data.user!.id);
-      setLoading(false);
-      router.push("/");
-      router.refresh();
-      return;
-    }
-
-    setLoading(false);
-    setConfirmationSent(true);
-  }
-
-  if (confirmationSent) {
-    return (
-      <div className="mx-auto flex max-w-sm flex-col px-6 py-24 text-center">
-        <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">Check your email</h1>
-        <p className="mt-2 text-[var(--color-text-secondary)]">
-          We sent a confirmation link to {email}. Once confirmed, sign in.
-        </p>
-        <Link
-          href="/auth/email-login"
-          className="mt-6 rounded-[var(--radius-input)] bg-[var(--color-brand)] px-4 py-2 font-medium text-white"
-        >
-          Go to sign in
-        </Link>
-      </div>
+    // Username/name are set after the code is verified (a session is
+    // required — see /auth/email-verify), same as the app's flow.
+    router.push(
+      `/auth/email-verify?email=${encodeURIComponent(email)}&username=${encodeURIComponent(normalizedUsername)}`,
     );
   }
 
   return (
     <div className="mx-auto flex max-w-sm flex-col px-6 py-24">
       <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">Create your account</h1>
-      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+      <div className="mt-8">
+        <GoogleSignInButton />
+      </div>
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-[var(--color-border)]" />
+        <span className="text-xs text-[var(--color-text-secondary)]">or</span>
+        <div className="h-px flex-1 bg-[var(--color-border)]" />
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="email"
           required
@@ -89,20 +118,24 @@ export default function EmailSignUpPage() {
           onChange={(e) => setEmail(e.target.value)}
           className="rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 py-2 outline-none"
         />
-        <input
-          required
-          placeholder="Full name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 py-2 outline-none"
-        />
-        <input
-          required
-          placeholder="City"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          className="rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 py-2 outline-none"
-        />
+        <div>
+          <input
+            required
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full rounded-[var(--radius-input)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 py-2 outline-none"
+          />
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+            {checkingUsername
+              ? "Checking..."
+              : displayUsernameAvailable === true
+                ? "✓ Available"
+                : displayUsernameAvailable === false
+                  ? "Taken"
+                  : "Lowercase letters, numbers, underscore — 3 to 20 characters"}
+          </p>
+        </div>
         <input
           type="password"
           required

@@ -29,7 +29,7 @@ export async function SiteHeader() {
             <SiteSignOutButton />
           ) : (
             <Link
-              href="/auth/phone"
+              href="/auth/email-login"
               className="rounded-[var(--radius-input)] bg-[var(--color-brand)] px-3 py-1.5 font-medium text-white"
             >
               Sign in

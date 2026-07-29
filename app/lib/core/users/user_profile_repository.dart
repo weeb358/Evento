@@ -25,15 +25,19 @@ class UserProfileRepository {
     });
   }
 
-  /// Only `name`/`city`/`photo_url`/`bio` are writable by the user — the
-  /// `authenticated` role's column grants (see 0002_premium_hosting.sql)
-  /// enforce this at the database level too.
+  /// Only `name`/`city`/`photo_url`/`bio`/`username` are writable by the
+  /// user — the `authenticated` role's column grants (see
+  /// 0002_premium_hosting.sql, 0008_username_and_remove_phone.sql) enforce
+  /// this at the database level too. A username collision surfaces as a
+  /// `ValidationFailure` via [AppFailure.fromException]'s unique-violation
+  /// handling (Postgres code 23505).
   Future<Result<AppUserProfile>> updateProfile({
     required String userId,
     String? name,
     String? city,
     String? photoUrl,
     String? bio,
+    String? username,
   }) {
     return guard(() async {
       final updates = <String, dynamic>{
@@ -41,9 +45,22 @@ class UserProfileRepository {
         if (city != null) 'city': city,
         if (photoUrl != null) 'photo_url': photoUrl,
         if (bio != null) 'bio': bio,
+        if (username != null) 'username': username,
       };
       final row = await _client.from('users').update(updates).eq('id', userId).select().single();
       return AppUserProfile.fromJson(row);
+    });
+  }
+
+  /// Lowercase, matching the `users_username_format` check constraint.
+  Future<Result<bool>> isUsernameAvailable(String username) {
+    return guard(() async {
+      final row = await _client
+          .from('users')
+          .select('id')
+          .eq('username', username.toLowerCase())
+          .maybeSingle();
+      return row == null;
     });
   }
 

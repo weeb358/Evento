@@ -5,16 +5,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/screens/email_login_screen.dart';
 import '../../features/auth/presentation/screens/email_signup_screen.dart';
+import '../../features/auth/presentation/screens/email_verify_code_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
-import '../../features/auth/presentation/screens/otp_verify_screen.dart';
-import '../../features/auth/presentation/screens/phone_entry_screen.dart';
 import '../../features/auth/presentation/screens/profile_screen.dart';
 import '../../features/auth/presentation/screens/profile_setup_screen.dart';
 import '../../features/auth/presentation/screens/public_profile_screen.dart';
+import '../../features/chat/presentation/screens/chat_thread_screen.dart';
+import '../../features/chat/presentation/screens/chat_threads_screen.dart';
+import '../../features/communities/presentation/screens/communities_list_screen.dart';
+import '../../features/communities/presentation/screens/community_detail_screen.dart';
+import '../../features/communities/presentation/screens/community_members_screen.dart';
+import '../../features/communities/presentation/screens/create_community_screen.dart';
+import '../../features/communities/presentation/screens/post_detail_screen.dart';
 import '../../features/events/presentation/screens/event_detail_screen.dart';
 import '../../features/events/presentation/screens/event_form_screen.dart';
 import '../../features/events/presentation/screens/event_list_screen.dart';
 import '../../features/events/presentation/screens/events_map_screen.dart';
+import '../../features/events/presentation/screens/organizer_dashboard_screen.dart';
 import '../../features/events/presentation/screens/report_form_screen.dart';
 import '../../features/hosting/presentation/screens/booking_request_form_screen.dart';
 import '../../features/hosting/presentation/screens/host_booking_requests_screen.dart';
@@ -28,6 +35,8 @@ import '../../features/premium/presentation/screens/event_analytics_screen.dart'
 import '../../features/premium/presentation/screens/event_templates_screen.dart';
 import '../../features/premium/presentation/screens/paywall_screen.dart';
 import '../../features/premium/presentation/screens/saved_collections_screen.dart';
+import '../onboarding/intro_providers.dart';
+import '../onboarding/intro_screen.dart';
 import 'app_shell.dart';
 import 'auth_refresh_notifier.dart';
 
@@ -39,6 +48,13 @@ final _authRefreshNotifierProvider = Provider<AuthRefreshNotifier>((ref) {
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
+const _kSignInEntryRoutes = {
+  '/auth/email-login',
+  '/auth/email-signup',
+  '/auth/email-verify',
+  '/auth/forgot-password',
+};
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authRefresh = ref.watch(_authRefreshNotifierProvider);
 
@@ -47,36 +63,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/events',
     refreshListenable: authRefresh,
     redirect: (context, state) {
+      final hasSeenIntro = ref.read(hasSeenIntroProvider);
       final isSignedIn = Supabase.instance.client.auth.currentSession != null;
       final location = state.matchedLocation;
-      // These all require being signed OUT; profile setup requires being
-      // signed IN (a fresh sign-in lands there when the profile is
-      // incomplete — see OtpVerifyScreen/EmailSignUpScreen).
-      const signInEntryRoutes = {
-        '/auth/phone',
-        '/auth/otp',
-        '/auth/email-login',
-        '/auth/email-signup',
-        '/auth/forgot-password',
-      };
-      final isSignInEntryRoute = signInEntryRoutes.contains(location);
+      final isIntroRoute = location == '/intro';
+      final isSignInEntryRoute = _kSignInEntryRoutes.contains(location);
       final isProfileSetupRoute = location == '/auth/profile-setup';
 
-      if (!isSignedIn && !isSignInEntryRoute) return '/auth/phone';
+      // Intro is shown once, before anything else, regardless of auth state.
+      if (!hasSeenIntro && !isIntroRoute) return '/intro';
+      if (hasSeenIntro && isIntroRoute) return isSignedIn ? '/events' : '/auth/email-login';
+
+      if (!isSignedIn && !isSignInEntryRoute && !isIntroRoute) return '/auth/email-login';
       if (isSignedIn && isSignInEntryRoute) return '/events';
-      if (!isSignedIn && isProfileSetupRoute) return '/auth/phone';
+      if (!isSignedIn && isProfileSetupRoute) return '/auth/email-login';
       return null;
     },
     routes: [
       GoRoute(
-        path: '/auth/phone',
-        name: 'authPhone',
-        builder: (context, state) => const PhoneEntryScreen(),
-      ),
-      GoRoute(
-        path: '/auth/otp',
-        name: 'authOtp',
-        builder: (context, state) => OtpVerifyScreen(phone: state.extra as String? ?? ''),
+        path: '/intro',
+        name: 'intro',
+        builder: (context, state) => const IntroScreen(),
       ),
       GoRoute(
         path: '/auth/email-login',
@@ -89,6 +96,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const EmailSignUpScreen(),
       ),
       GoRoute(
+        path: '/auth/email-verify',
+        name: 'emailVerify',
+        builder: (context, state) => EmailVerifyCodeScreen(email: state.extra as String? ?? ''),
+      ),
+      GoRoute(
         path: '/auth/forgot-password',
         name: 'forgotPassword',
         builder: (context, state) => const ForgotPasswordScreen(),
@@ -98,6 +110,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'profileSetup',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const ProfileSetupScreen(),
+      ),
+      GoRoute(
+        path: '/organizer',
+        name: 'organizerDashboard',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const OrganizerDashboardScreen(),
       ),
       GoRoute(
         path: '/events/create',
@@ -141,6 +159,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const EventTemplatesScreen(),
       ),
       GoRoute(
+        path: '/saved',
+        name: 'saved',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SavedCollectionsScreen(),
+      ),
+      GoRoute(
         path: '/saved/:collectionId',
         name: 'savedCollectionDetail',
         parentNavigatorKey: _rootNavigatorKey,
@@ -159,6 +183,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'publicProfile',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => PublicProfileScreen(userId: state.pathParameters['userId']!),
+      ),
+      GoRoute(
+        path: '/hosting',
+        name: 'hostingBrowse',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const HostBrowseScreen(),
       ),
       GoRoute(
         path: '/hosting/setup',
@@ -200,6 +230,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      GoRoute(
+        path: '/communities/create',
+        name: 'createCommunity',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const CreateCommunityScreen(),
+      ),
+      GoRoute(
+        path: '/communities/posts/:postId',
+        name: 'postDetail',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => PostDetailScreen(postId: state.pathParameters['postId']!),
+      ),
+      GoRoute(
+        path: '/communities/:communityId',
+        name: 'communityDetail',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => CommunityDetailScreen(communityId: state.pathParameters['communityId']!),
+        routes: [
+          GoRoute(
+            path: 'members',
+            name: 'communityMembers',
+            parentNavigatorKey: _rootNavigatorKey,
+            builder: (context, state) => CommunityMembersScreen(communityId: state.pathParameters['communityId']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/chat/:threadId',
+        name: 'chatThread',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => ChatThreadScreen(threadId: state.pathParameters['threadId']!),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
         branches: [
@@ -210,10 +272,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             GoRoute(path: '/map', name: 'map', builder: (context, state) => const EventsMapScreen()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/saved', name: 'saved', builder: (context, state) => const SavedCollectionsScreen()),
+            GoRoute(
+              path: '/communities',
+              name: 'communities',
+              builder: (context, state) => const CommunitiesListScreen(),
+            ),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/hosting', name: 'hosting', builder: (context, state) => const HostBrowseScreen()),
+            GoRoute(path: '/chat', name: 'chat', builder: (context, state) => const ChatThreadsScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/profile', name: 'profile', builder: (context, state) => const ProfileScreen()),

@@ -3,7 +3,7 @@ export type UserRole = "user" | "event_planner" | "admin";
 
 export interface UserProfile {
   id: string;
-  phone: string | null;
+  username: string | null;
   email: string | null;
   name: string | null;
   city: string | null;

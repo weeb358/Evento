@@ -170,6 +170,41 @@ class EventRepository {
     return guard(() => _client.from('events').delete().eq('id', id));
   }
 
+  /// Copies an existing event into a new draft owned by [organizerId] —
+  /// pushed a week out from the original start time so it never lands in
+  /// the past, left as a draft so the organizer reviews it before publishing.
+  Future<Result<Event>> duplicateEvent({required String sourceId, required String organizerId}) {
+    return guard(() async {
+      final source = await _client.from('events').select().eq('id', sourceId).single();
+      final sourceEvent = Event.fromJson(source);
+      final newStart = sourceEvent.startTime.add(const Duration(days: 7));
+      final newEnd = sourceEvent.endTime?.add(const Duration(days: 7));
+
+      final row = await _client
+          .from('events')
+          .insert({
+            'organizer_id': organizerId,
+            'title': '${sourceEvent.title} (Copy)',
+            'description': sourceEvent.description,
+            'category': sourceEvent.category,
+            'city': sourceEvent.city,
+            'venue_name': sourceEvent.venueName,
+            'lat': sourceEvent.lat,
+            'lng': sourceEvent.lng,
+            'start_time': newStart.toIso8601String(),
+            'end_time': newEnd?.toIso8601String(),
+            'price': sourceEvent.price,
+            'capacity': sourceEvent.capacity,
+            'cover_image_url': sourceEvent.coverImageUrl,
+            'status': EventStatus.draft.name,
+            'is_featured': false,
+          })
+          .select()
+          .single();
+      return Event.fromJson(row);
+    });
+  }
+
   Future<Result<String>> uploadCoverImage({
     required String organizerId,
     required Uint8List bytes,

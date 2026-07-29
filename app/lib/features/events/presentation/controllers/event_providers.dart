@@ -36,6 +36,14 @@ final organizerEventsProvider = FutureProvider.autoDispose.family<List<Event>, S
   return result.when(ok: (events) => events, err: (_) => []);
 });
 
+/// The signed-in organizer's own events, for the dashboard — null while
+/// signed out (route is guarded, but keeps the provider safe either way).
+final myOrganizerEventsProvider = FutureProvider.autoDispose<List<Event>>((ref) async {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return [];
+  return ref.watch(organizerEventsProvider(userId).future);
+});
+
 final myRsvpProvider = FutureProvider.autoDispose.family<Rsvp?, String>((ref, eventId) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return null;

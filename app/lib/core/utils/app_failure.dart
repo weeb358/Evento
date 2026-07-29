@@ -9,6 +9,10 @@ sealed class AppFailure {
   final String message;
 
   factory AppFailure.fromException(Object error) {
+    // A repository may preemptively throw a specific AppFailure (e.g. a
+    // "cancelled" case that isn't really an error) inside `guard()` —
+    // pass it through unchanged instead of falling into UnknownFailure.
+    if (error is AppFailure) return error;
     if (error is AuthException) {
       return AuthFailure(error.message);
     }

@@ -11,6 +11,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/users/user_profile_providers.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../chat/presentation/controllers/chat_providers.dart';
 import '../../data/host_profile.dart';
 import '../../data/host_repository.dart';
 import '../controllers/hosting_providers.dart';
@@ -155,7 +156,7 @@ class HostDetailScreen extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: AppSpacing.xxl),
-              if (!isOwnProfile && currentUserId != null)
+              if (!isOwnProfile && currentUserId != null) ...[
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
@@ -163,6 +164,25 @@ class HostDetailScreen extends ConsumerWidget {
                     child: const Text('Request to stay'),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                    label: const Text('Message host'),
+                    onPressed: () async {
+                      final result = await ref.read(chatRepositoryProvider).getOrCreateDirectThread(hostId);
+                      if (!context.mounted) return;
+                      result.when(
+                        ok: (threadId) => context.push('/chat/$threadId'),
+                        err: (failure) => ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(failure.message)),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           );
         },

@@ -3,21 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/users/user_profile_providers.dart';
+
 import '../controllers/auth_controller.dart';
 
-class OtpVerifyScreen extends ConsumerStatefulWidget {
-  const OtpVerifyScreen({super.key, required this.phone});
+/// Completes signup with the 6-digit code from the confirmation email —
+/// see docs/ARCHITECTURE.md for the custom-SMTP requirement that makes the
+/// email actually contain a code instead of the default magic link.
+class EmailVerifyCodeScreen extends ConsumerStatefulWidget {
+  const EmailVerifyCodeScreen({super.key, required this.email});
 
-  final String phone;
+  final String email;
 
   @override
-  ConsumerState<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
+  ConsumerState<EmailVerifyCodeScreen> createState() => _EmailVerifyCodeScreenState();
 }
 
-class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
+class _EmailVerifyCodeScreenState extends ConsumerState<EmailVerifyCodeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _codeController = TextEditingController();
+  String? _resendMessage;
 
   @override
   void dispose() {
@@ -28,30 +32,27 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final ok = await ref.read(otpControllerProvider.notifier).verifyOtp(
-          phone: widget.phone,
+    final ok = await ref.read(emailAuthControllerProvider.notifier).verifySignUpCode(
+          email: widget.email,
           token: _codeController.text.trim(),
         );
-    if (!ok || !mounted) return;
 
-    // Fresh sign-in: send incomplete profiles to setup, otherwise straight in.
-    ref.invalidate(currentUserProfileProvider);
-    final profile = await ref.read(currentUserProfileProvider.future);
+    if (!mounted || !ok) return;
+    context.go('/auth/profile-setup');
+  }
+
+  Future<void> _resend() async {
+    final ok = await ref.read(emailAuthControllerProvider.notifier).resendSignUpCode(widget.email);
     if (!mounted) return;
-
-    if (profile == null || !profile.hasCompletedProfile) {
-      context.go('/auth/profile-setup');
-    } else {
-      context.go('/events');
-    }
+    setState(() => _resendMessage = ok ? 'Sent a new code.' : 'Couldn\'t resend right now.');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final state = ref.watch(otpControllerProvider);
+    final state = ref.watch(emailAuthControllerProvider);
     final isLoading = state.isLoading;
-    final errorMessage = ref.read(otpControllerProvider.notifier).errorMessage;
+    final errorMessage = ref.read(emailAuthControllerProvider.notifier).errorMessage;
 
     return Scaffold(
       appBar: AppBar(),
@@ -64,10 +65,10 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Enter the code', style: theme.textTheme.headlineSmall),
+                Text('Check your email', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'We sent a 6-digit code to ${widget.phone}.',
+                  'Enter the 6-digit code we sent to ${widget.email}.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -79,10 +80,8 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
                   autofocus: true,
                   maxLength: 6,
                   decoration: const InputDecoration(labelText: 'Verification code'),
-                  validator: (value) {
-                    if ((value ?? '').trim().length != 6) return 'Enter the 6-digit code';
-                    return null;
-                  },
+                  validator: (value) =>
+                      (value ?? '').trim().length == 6 ? null : 'Enter the 6-digit code',
                 ),
                 if (errorMessage != null) ...[
                   const SizedBox(height: AppSpacing.sm),
@@ -104,11 +103,14 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 TextButton(
-                  onPressed: isLoading
-                      ? null
-                      : () => ref.read(otpControllerProvider.notifier).sendOtp(widget.phone),
+                  onPressed: isLoading ? null : _resend,
                   child: const Text('Resend code'),
                 ),
+                if (_resendMessage != null)
+                  Text(
+                    _resendMessage!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
               ],
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
@@ -13,6 +14,10 @@ import '../../data/event.dart';
 import '../controllers/event_providers.dart';
 import '../widgets/event_card.dart';
 
+/// Free "near me" radius — the Premium advanced-filters sheet offers a
+/// custom slider; this is the one-tap, no-Premium-required default.
+const _kNearMeRadiusKm = 30.0;
+
 const _kCities = ['All cities', 'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Peshawar'];
 
 class EventListScreen extends ConsumerStatefulWidget {
@@ -24,11 +29,46 @@ class EventListScreen extends ConsumerStatefulWidget {
 
 class _EventListScreenState extends ConsumerState<EventListScreen> {
   final _searchController = TextEditingController();
+  bool _isLocating = false;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleNearMe(bool enable) async {
+    final notifier = ref.read(activeFiltersProvider.notifier);
+
+    if (!enable) {
+      notifier.state = notifier.state.copyWith(clearRadius: true);
+      return;
+    }
+
+    setState(() => _isLocating = true);
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission is needed to show nearby events.')),
+          );
+        }
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      notifier.state = notifier.state.copyWith(
+        originLat: position.latitude,
+        originLng: position.longitude,
+        radiusKm: _kNearMeRadiusKm,
+      );
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
   @override
@@ -65,6 +105,24 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
               onSubmitted: (value) {
                 ref.read(activeFiltersProvider.notifier).state = filters.copyWith(searchQuery: value);
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FilterChip(
+                avatar: _isLocating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.near_me_rounded, size: 18),
+                label: const Text('Near me'),
+                selected: filters.radiusKm != null,
+                onSelected: _isLocating ? null : _toggleNearMe,
+              ),
             ),
           ),
           SizedBox(
@@ -157,7 +215,7 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
     final profile = ref.read(currentUserProfileProvider).valueOrNull;
 
     if (profile == null) {
-      context.push('/auth/phone');
+      context.push('/auth/email-login');
       return;
     }
 
