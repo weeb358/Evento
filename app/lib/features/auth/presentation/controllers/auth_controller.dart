@@ -80,9 +80,9 @@ class EmailAuthController extends AsyncNotifier<void> {
     );
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle({bool allowSignUp = true}) async {
     state = const AsyncLoading();
-    final result = await ref.read(authRepositoryProvider).signInWithGoogle();
+    final result = await ref.read(authRepositoryProvider).signInWithGoogle(allowSignUp: allowSignUp);
     return result.when(
       ok: (_) {
         state = const AsyncData(null);
@@ -112,9 +112,18 @@ class EmailAuthController extends AsyncNotifier<void> {
     );
   }
 
-  String? get errorMessage {
+  AppFailure? get failure {
     final value = state;
-    return value is AsyncError ? (value.error as AppFailure).message : null;
+    return value is AsyncError ? value.error as AppFailure : null;
+  }
+
+  String? get errorMessage => failure?.message;
+
+  /// Resets to idle without touching the session — for screens to call on
+  /// entry so a failure from a previous screen (this notifier is shared
+  /// app-wide) doesn't show up as if it just happened here.
+  void clearError() {
+    if (state is AsyncError) state = const AsyncData(null);
   }
 }
 

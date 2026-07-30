@@ -24,6 +24,7 @@ app/.env.*
 !app/.env.example
 app/android/app/google-services.json
 app/ios/Runner/GoogleService-Info.plist
+app/.screenshots/
 
 # --- Next.js (website/) ---
 website/node_modules/

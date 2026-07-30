@@ -36,10 +36,24 @@ enable_confirmations = true
 subject = "Confirm your Events Platform account"
 content_path = "./supabase/templates/confirm_signup.html"
 
-# Flip to `enabled = true` once GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are
-# set in supabase/.env — see docs/ARCHITECTURE.md for how to get them.
+# Custom SMTP is required to unlock custom templates on the free tier —
+# configured directly in the Supabase Dashboard (Project Settings >
+# Authentication > SMTP Settings) using a Gmail App Password, since the
+# CLI wasn't linked at setup time. This block documents it for a future
+# `supabase config push`.
+[auth.email.smtp]
+enabled = true
+host = "smtp.gmail.com"
+port = 587
+user = "env(GMAIL_SMTP_USER)"
+pass = "env(GMAIL_SMTP_PASS)"
+sender_name = "Evento"
+
+# Also enabled directly in the Supabase Dashboard (Authentication >
+# Providers > Google) since the CLI wasn't linked when this was set up —
+# this block just keeps a future `supabase config push` in sync.
 [auth.external.google]
-enabled = false
+enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 

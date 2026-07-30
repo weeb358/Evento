@@ -37,6 +37,7 @@ import '../../features/premium/presentation/screens/paywall_screen.dart';
 import '../../features/premium/presentation/screens/saved_collections_screen.dart';
 import '../onboarding/intro_providers.dart';
 import '../onboarding/intro_screen.dart';
+import '../users/user_profile_providers.dart';
 import 'app_shell.dart';
 import 'auth_refresh_notifier.dart';
 
@@ -62,7 +63,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/events',
     refreshListenable: authRefresh,
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final hasSeenIntro = ref.read(hasSeenIntroProvider);
       final isSignedIn = Supabase.instance.client.auth.currentSession != null;
       final location = state.matchedLocation;
@@ -75,8 +76,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (hasSeenIntro && isIntroRoute) return isSignedIn ? '/events' : '/auth/email-login';
 
       if (!isSignedIn && !isSignInEntryRoute && !isIntroRoute) return '/auth/email-login';
-      if (isSignedIn && isSignInEntryRoute) return '/events';
       if (!isSignedIn && isProfileSetupRoute) return '/auth/email-login';
+
+      // Google sign-in establishes a session immediately (unlike email
+      // signup, which only gets here via the verify-code screen's own
+      // explicit navigation) — without this, a brand-new Google user would
+      // land straight on /events with no username ever collected. Cached
+      // after the first load, so this doesn't add a visible delay to
+      // ordinary in-app navigation.
+      if (isSignedIn && !isProfileSetupRoute) {
+        final profile = await ref.read(currentUserProfileProvider.future);
+        if (profile != null && !profile.hasCompletedProfile) return '/auth/profile-setup';
+      }
+
+      if (isSignedIn && isSignInEntryRoute) return '/events';
       return null;
     },
     routes: [

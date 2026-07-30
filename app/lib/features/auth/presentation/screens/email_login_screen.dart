@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/app_failure.dart';
 import '../../../../core/widgets/google_sign_in_button.dart';
 import '../controllers/auth_controller.dart';
 
@@ -19,6 +20,18 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
   final _passwordController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Clears any error left over from another auth screen (e.g. signup) —
+    // without this, an unrelated failure banner (or a stale Google-picker
+    // result) could show up here even though nothing has been submitted on
+    // this screen yet, since the notifier's state is shared app-wide.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(emailAuthControllerProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -28,35 +41,46 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final ok = await ref.read(emailAuthControllerProvider.notifier).signIn(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+    final email = _emailController.text.trim();
+    final controller = ref.read(emailAuthControllerProvider.notifier);
+    final ok = await controller.signIn(email: email, password: _passwordController.text);
 
     if (!mounted) return;
     if (!ok) {
-      _showSignUpFirstDialog();
+      if (controller.failure is EmailNotConfirmedFailure) {
+        context.push('/auth/email-verify', extra: email);
+      } else {
+        _showSignUpFirstDialog();
+      }
     }
     // On success, the router's redirect picks up the new session and
     // navigates away — nothing else to do here.
   }
 
   Future<void> _submitGoogle() async {
-    await ref.read(emailAuthControllerProvider.notifier).signInWithGoogle();
-    // Cancellation and real failures both just leave the error banner up
-    // via emailAuthControllerProvider's AsyncError state — no separate
-    // handling needed here.
+    final controller = ref.read(emailAuthControllerProvider.notifier);
+    final ok = await controller.signInWithGoogle(allowSignUp: false);
+
+    if (!mounted || ok) return;
+    // Cancellation and other real failures just leave the error banner up
+    // via emailAuthControllerProvider's AsyncError state; only the "no
+    // account yet" case gets the same prompt as the email flow.
+    if (controller.failure is GoogleAccountNotRegisteredFailure) {
+      _showSignUpFirstDialog(
+        'No Evento account is linked to that Google account yet. Sign up first.',
+      );
+    }
   }
 
-  void _showSignUpFirstDialog() {
+  void _showSignUpFirstDialog([
+    String message = 'That email/password combination isn\'t recognized. If you don\'t have an '
+        'account yet, sign up first.',
+  ]) {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Couldn\'t sign you in'),
-        content: const Text(
-          'That email/password combination isn\'t recognized. If you don\'t have an '
-          'account yet, sign up first.',
-        ),
+        content: Text(message),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Try again')),
           FilledButton(

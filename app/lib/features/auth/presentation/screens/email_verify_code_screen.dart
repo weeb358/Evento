@@ -24,6 +24,14 @@ class _EmailVerifyCodeScreenState extends ConsumerState<EmailVerifyCodeScreen> {
   String? _resendMessage;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(emailAuthControllerProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _codeController.dispose();
     super.dispose();

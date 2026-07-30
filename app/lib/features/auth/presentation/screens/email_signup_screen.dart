@@ -21,6 +21,14 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
   bool _wantsToOrganize = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(emailAuthControllerProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();

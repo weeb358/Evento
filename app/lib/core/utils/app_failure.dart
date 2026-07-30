@@ -14,6 +14,9 @@ sealed class AppFailure {
     // pass it through unchanged instead of falling into UnknownFailure.
     if (error is AppFailure) return error;
     if (error is AuthException) {
+      if (error.code == 'email_not_confirmed') {
+        return const EmailNotConfirmedFailure();
+      }
       return AuthFailure(error.message);
     }
     if (error is PostgrestException) {
@@ -37,6 +40,22 @@ final class NetworkFailure extends AppFailure {
 
 final class AuthFailure extends AppFailure {
   const AuthFailure(super.message);
+}
+
+/// Distinguished from [AuthFailure] so the login screen can route to the
+/// verify-code screen instead of the generic "wrong email/password" prompt —
+/// this is what a user with an unfinished signup (or one whose account was
+/// stuck before custom SMTP was configured) actually hits.
+final class EmailNotConfirmedFailure extends AppFailure {
+  const EmailNotConfirmedFailure() : super('Please confirm your email first.');
+}
+
+/// Thrown by [AuthRepository.signInWithGoogle] when called with
+/// `allowSignUp: false` (the login screen) and the Google account has no
+/// existing app account yet — mirrors the email flow's "sign up first"
+/// prompt instead of silently creating an account from the login screen.
+final class GoogleAccountNotRegisteredFailure extends AppFailure {
+  const GoogleAccountNotRegisteredFailure() : super('No account found for that Google sign-in.');
 }
 
 final class ValidationFailure extends AppFailure {

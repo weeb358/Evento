@@ -66,7 +66,13 @@ class AuthRepository {
   /// Android one — Supabase's id-token flow specifically needs the Web
   /// client's audience) and the Google provider enabled in Supabase Auth.
   /// See docs/ARCHITECTURE.md for the exact setup steps.
-  Future<Result<void>> signInWithGoogle() {
+  ///
+  /// [allowSignUp] false (the login screen) rejects a Google account that
+  /// has no existing app account yet — Supabase's id-token exchange would
+  /// otherwise silently create one, which is the email flow's "sign up
+  /// first" behavior applied consistently to Google too. The signup screen
+  /// passes the default `true`.
+  Future<Result<void>> signInWithGoogle({bool allowSignUp = true}) {
     return guard(() async {
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
@@ -80,12 +86,30 @@ class AuthRepository {
       if (idToken == null) {
         throw const AuthFailure('Google sign-in did not return an ID token.');
       }
-      await _client.auth.signInWithIdToken(
+      final response = await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
+
+      final userId = response.user?.id;
+      if (!allowSignUp && userId != null && await _hasNoAppProfile(userId)) {
+        await _googleSignIn.signOut();
+        await _client.auth.signOut();
+        throw const GoogleAccountNotRegisteredFailure();
+      }
     });
+  }
+
+  /// `handle_new_auth_user()` (0008_username_and_remove_phone.sql) creates a
+  /// `public.users` row unconditionally for every auth signup, first-time or
+  /// not, so "row exists" can't distinguish new from returning — but
+  /// `username` is only ever set once profile-setup completes. A signed-in
+  /// Google user with no username has therefore never actually signed up
+  /// through this app before.
+  Future<bool> _hasNoAppProfile(String userId) async {
+    final row = await _client.from('users').select('username').eq('id', userId).maybeSingle();
+    return (row?['username'] as String?) == null;
   }
 
   Future<Result<void>> signOut() {
